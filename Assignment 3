@@ -1,0 +1,99 @@
+open Ast
+open Eval
+
+type 'a tree = Leaf | Node of 'a tree * 'a * 'a tree
+
+let rec insert tree x =
+  match tree with
+  | Leaf -> Node(Leaf, x, Leaf)
+  | Node(l, y, r) ->
+     if x = y then tree
+     else if x < y then Node(insert l x, y, r)
+     else Node(l, y, insert r x)
+
+let construct l =
+  List.fold_left (fun acc x -> insert acc x) Leaf l
+
+(**********************************)
+(* Problem 1: Tree In-order Fold  *)
+(**********************************)
+
+let rec fold_inorder f acc t =
+  match t with
+  | Leaf -> acc
+  | Node (l,v,r) -> (fold_inorder f (f (fold_inorder f acc l) v) r)
+
+
+(*****************************************)
+(* Problem 2: Tree Level-order Traversal *)
+(*****************************************)
+
+let at_level t level =
+  let rec at_level_aux t acc count = match t with
+    | Leaf -> acc
+    | Node (l, x, r) ->
+        if count = level then
+          x :: acc
+        else
+          at_level_aux l (at_level_aux r acc (count + 1)) (count + 1)
+  in
+ at_level_aux t [] 1;;
+
+
+let levelOrder t =
+  let rec level_aux t acc count =
+    if at_level t count = [] then
+      acc
+    else
+      acc @ [at_level t count] @ level_aux t acc (count+1)
+  in
+  level_aux t [] 1;;
+
+
+(***************************************)
+(* Problem 3: Tail-recursive Tree Sum  *)
+(***************************************)
+
+let rec sum_tree t =
+  match t with
+  | Leaf -> 0
+  | Node (l, x, r) -> sum_tree l + x + sum_tree r
+
+let sumtailrec t =
+let rec aux acc ts=
+  match ts with
+  |[] -> acc
+  |(Leaf::t) -> aux acc t
+  |(Node(l,x,r)::t) -> let ts' = t @ [l] @ [r] in
+                        aux (acc+x) ts'
+in aux 0 [t]
+
+(******************************)
+(* Problem 4: Imp Interperter *)
+(**** Your code in eval.ml ****)
+(******************************)
+
+(* Parse a file of Imp source code *)
+let load (filename : string) : Ast.com =
+  let ch =
+    try open_in filename
+    with Sys_error s -> failwith ("Cannot open file: " ^ s) in
+  let parse : com =
+    try Parser.main Lexer.token (Lexing.from_channel ch)
+  with e ->
+      let msg = Printexc.to_string e
+      and stack = Printexc.get_backtrace () in
+      Printf.eprintf "there was an error: %s%s\n" msg stack;
+      close_in ch; failwith "Cannot parse program" in
+  close_in ch;
+  parse
+
+(* Interpret a parsed AST with the eval_command function defined in eval.ml *)
+let eval (parsed_ast : Ast.com) : environment =
+  let env = [] in
+  eval_command parsed_ast env
+
+
+(********)
+(* Done *)
+(********)
